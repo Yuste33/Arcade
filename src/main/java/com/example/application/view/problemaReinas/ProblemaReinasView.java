@@ -1,10 +1,11 @@
 package com.example.application.view.problemaReinas;
 
 import com.example.application.controller.problemaReinas.ProblemaReinasController;
+import com.example.application.model.PartidaReinas;
 import com.example.application.model.problemaReinas.PiezaReinas;
+import com.example.application.repository.PartidaReinasRepository;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
@@ -15,6 +16,8 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +25,7 @@ import java.util.List;
 @Route(value = "reinas")
 public class ProblemaReinasView extends VerticalLayout {
 
+    private final PartidaReinasRepository partidaReinasRepository;
     private ProblemaReinasController controller;
     private final IntegerField tamañoField;
     private final Div tableroContainer;
@@ -29,7 +33,10 @@ public class ProblemaReinasView extends VerticalLayout {
     private final Button comprobarBtn;
     private final Button resolverAutomaticoBtn;
 
-    public ProblemaReinasView() {
+    @Autowired
+    public ProblemaReinasView(PartidaReinasRepository partidaReinasRepository) {
+        this.partidaReinasRepository = partidaReinasRepository;
+
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
         setPadding(true);
@@ -52,9 +59,7 @@ public class ProblemaReinasView extends VerticalLayout {
         tableroContainer = new Div();
         tableroContainer.setWidth("600px");
         tableroContainer.setHeight("600px");
-        tableroContainer.getStyle()
-                .set("margin", "auto")
-                .set("display", "grid");
+        tableroContainer.getStyle().set("margin", "auto").set("display", "grid");
 
         casillas = new ArrayList<>();
 
@@ -103,7 +108,7 @@ public class ProblemaReinasView extends VerticalLayout {
                         .set("background-color", (fila + col) % 2 == 0 ? "white" : "#f0f0f0");
 
                 casilla.addClickListener(e -> {
-                    if (controller.esSeguro(currentFila, currentCol)) {
+                    if (controller != null && controller.esSeguro(currentFila, currentCol)) {
                         PiezaReinas reina = new PiezaReinas(currentFila, currentCol);
                         if (controller.agregarReina(reina)) {
                             actualizarTableroVisual();
@@ -123,18 +128,21 @@ public class ProblemaReinasView extends VerticalLayout {
     }
 
     private void actualizarTableroVisual() {
+        int tamaño = controller.getTamaño();
         List<PiezaReinas> reinas = controller.getSolucion();
 
-        for (Div casilla : casillas) {
+        for (int i = 0; i < casillas.size(); i++) {
+            Div casilla = casillas.get(i);
             casilla.removeAll();
-            casilla.getStyle().set("background-color",
-                    (casillas.indexOf(casilla) / controller.getTamaño() +
-                            casillas.indexOf(casilla) % controller.getTamaño()) % 2 == 0
-                            ? "white" : "#f0f0f0");
+
+            int fila = i / tamaño;
+            int col = i % tamaño;
+            String color = (fila + col) % 2 == 0 ? "white" : "#f0f0f0";
+            casilla.getStyle().set("background-color", color);
         }
 
         for (PiezaReinas reina : reinas) {
-            int index = reina.getFila() * controller.getTamaño() + reina.getColumna();
+            int index = reina.getFila() * tamaño + reina.getColumna();
             Div casilla = casillas.get(index);
 
             Div reinaVisual = new Div();
@@ -149,13 +157,20 @@ public class ProblemaReinasView extends VerticalLayout {
     }
 
     private void comprobarSolucion() {
-        if (controller.solucionCompleta()) {
+        if (controller == null) return;
+
+        boolean solucion = controller.solucionCompleta();
+        boolean resultado = solucion;
+
+        if (solucion) {
             Notification.show("¡Correcto! Has colocado todas las reinas sin conflictos.",
                     3000, Position.MIDDLE);
         } else {
             Notification.show("Aún no es una solución válida. Faltan reinas o hay conflictos.",
                     3000, Position.MIDDLE);
         }
+
+        guardarResultadoEnBD(resultado);
     }
 
     private void mostrarDialogoResolucion() {
@@ -178,7 +193,14 @@ public class ProblemaReinasView extends VerticalLayout {
         columnaField.setValue(0);
 
         Button resolverBtn = new Button("Resolver", e -> {
-            resolverDesdePosicion(filaField.getValue(), columnaField.getValue());
+            boolean exito = controller.resolverDesdePosicion(filaField.getValue(), columnaField.getValue());
+            actualizarTableroVisual();
+
+            Notification.show(exito ?
+                    "Solución encontrada." :
+                    "No se encontró solución con esa posición.", 3000, Position.MIDDLE);
+
+            guardarResultadoEnBD(exito);
             dialogo.close();
         });
 
@@ -197,14 +219,13 @@ public class ProblemaReinasView extends VerticalLayout {
         dialogo.open();
     }
 
-    private void resolverDesdePosicion(int filaInicial, int columnaInicial) {
-        if (controller.resolverDesdePosicion(filaInicial, columnaInicial)) {
-            actualizarTableroVisual();
-            Notification.show("Solución encontrada colocando la primera reina en (" +
-                    filaInicial + "," + columnaInicial + ")", 3000, Position.MIDDLE);
-        } else {
-            Notification.show("No se encontró solución con la reina inicial en (" +
-                    filaInicial + "," + columnaInicial + ")", 3000, Position.MIDDLE);
-        }
+    private void guardarResultadoEnBD(boolean fueResuelto) {
+        if (controller == null) return;
+
+        PartidaReinas partida = new PartidaReinas();
+        partida.setN(controller.getTamaño());
+        partida.setResuelto(fueResuelto);
+        partida.setIntentos(controller.getNumeroIntentos());
+        partidaReinasRepository.save(partida);
     }
 }

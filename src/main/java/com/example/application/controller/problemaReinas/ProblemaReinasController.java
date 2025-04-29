@@ -2,16 +2,20 @@ package com.example.application.controller.problemaReinas;
 
 import com.example.application.model.problemaReinas.PiezaReinas;
 import com.example.application.model.problemaReinas.TableroReinas;
+
 import java.util.List;
 
 public class ProblemaReinasController {
     private TableroReinas tablero;
+    private int intentos;
 
     public ProblemaReinasController(int tamaño) {
         this.tablero = new TableroReinas(tamaño);
+        this.intentos = 0;
     }
 
     public boolean agregarReina(PiezaReinas reina) {
+        intentos++;
         return tablero.agregarReina(reina);
     }
 
@@ -33,6 +37,7 @@ public class ProblemaReinasController {
 
     public void reiniciar() {
         tablero.reiniciar();
+        intentos = 0;
     }
 
     public boolean resolverDesdePosicion(int filaInicial, int columnaInicial) {
@@ -41,9 +46,9 @@ public class ProblemaReinasController {
             return false;
         }
 
-
-        tablero.reiniciar();
+        reiniciar(); // Reinicia tablero e intentos
         tablero.colocarReinaInicial(filaInicial, columnaInicial);
+        intentos++; // Contar la primera colocación
 
         return resolverRecursivo(columnaInicial + 1);
     }
@@ -56,6 +61,7 @@ public class ProblemaReinasController {
         for (int fila = 0; fila < tablero.getTamaño(); fila++) {
             if (tablero.esPosicionSegura(fila, columna)) {
                 tablero.agregarReina(new PiezaReinas(fila, columna));
+                intentos++;
 
                 if (resolverRecursivo(columna + 1)) {
                     return true;
@@ -74,5 +80,9 @@ public class ProblemaReinasController {
 
     public boolean tieneReina(int fila, int columna) {
         return tablero.tieneReina(fila, columna);
+    }
+
+    public int getNumeroIntentos() {
+        return intentos;
     }
 }
