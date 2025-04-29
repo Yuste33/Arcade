@@ -34,4 +34,45 @@ public class ProblemaReinasController {
     public void reiniciar() {
         tablero.reiniciar();
     }
+
+    public boolean resolverDesdePosicion(int filaInicial, int columnaInicial) {
+        if (filaInicial < 0 || filaInicial >= tablero.getTamaño() ||
+                columnaInicial < 0 || columnaInicial >= tablero.getTamaño()) {
+            return false;
+        }
+
+
+        tablero.reiniciar();
+        tablero.colocarReinaInicial(filaInicial, columnaInicial);
+
+        return resolverRecursivo(columnaInicial + 1);
+    }
+
+    private boolean resolverRecursivo(int columna) {
+        if (columna >= tablero.getTamaño()) {
+            return true;
+        }
+
+        for (int fila = 0; fila < tablero.getTamaño(); fila++) {
+            if (tablero.esPosicionSegura(fila, columna)) {
+                tablero.agregarReina(new PiezaReinas(fila, columna));
+
+                if (resolverRecursivo(columna + 1)) {
+                    return true;
+                }
+
+                tablero.eliminarReina(fila, columna);
+            }
+        }
+
+        return false;
+    }
+
+    public int[][] getEstadoTablero() {
+        return tablero.getEstadoTablero();
+    }
+
+    public boolean tieneReina(int fila, int columna) {
+        return tablero.tieneReina(fila, columna);
+    }
 }

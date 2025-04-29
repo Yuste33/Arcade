@@ -3,9 +3,11 @@ package com.example.application.view.problemaReinas;
 import com.example.application.controller.problemaReinas.ProblemaReinasController;
 import com.example.application.model.problemaReinas.PiezaReinas;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.Notification.Position;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -25,15 +27,14 @@ public class ProblemaReinasView extends VerticalLayout {
     private final Div tableroContainer;
     private final List<Div> casillas;
     private final Button comprobarBtn;
+    private final Button resolverAutomaticoBtn;
 
     public ProblemaReinasView() {
-        // Configuración básica
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
         setPadding(true);
         setSizeFull();
 
-        // Componentes UI
         H1 titulo = new H1("Problema de las N Reinas");
 
         tamañoField = new IntegerField("Tamaño del tablero (N)");
@@ -41,12 +42,12 @@ public class ProblemaReinasView extends VerticalLayout {
         tamañoField.setMin(4);
         tamañoField.setMax(12);
 
-        Button iniciarBtn = new Button("Crear Tablero");
-        iniciarBtn.addClickListener(e -> iniciarJuego());
-
-        comprobarBtn = new Button("Comprobar Solución");
-        comprobarBtn.addClickListener(e -> comprobarSolucion());
+        Button iniciarBtn = new Button("Crear Tablero", e -> iniciarJuego());
+        comprobarBtn = new Button("Comprobar Solución", e -> comprobarSolucion());
         comprobarBtn.setEnabled(false);
+
+        resolverAutomaticoBtn = new Button("Resolver Automático", e -> mostrarDialogoResolucion());
+        resolverAutomaticoBtn.setEnabled(false);
 
         tableroContainer = new Div();
         tableroContainer.setWidth("600px");
@@ -57,10 +58,9 @@ public class ProblemaReinasView extends VerticalLayout {
 
         casillas = new ArrayList<>();
 
-        // Añadir componentes al layout
         add(
                 titulo,
-                new HorizontalLayout(tamañoField, iniciarBtn, comprobarBtn),
+                new HorizontalLayout(tamañoField, iniciarBtn, comprobarBtn, resolverAutomaticoBtn),
                 tableroContainer
         );
     }
@@ -71,6 +71,7 @@ public class ProblemaReinasView extends VerticalLayout {
             controller = new ProblemaReinasController(tamaño);
             crearTableroVisual(tamaño);
             comprobarBtn.setEnabled(true);
+            resolverAutomaticoBtn.setEnabled(true);
             Notification.show("Tablero de " + tamaño + "x" + tamaño + " creado", 3000, Position.MIDDLE);
         } catch (Exception e) {
             Notification.show("Error al crear tablero: " + e.getMessage(), 3000, Position.MIDDLE);
@@ -81,7 +82,6 @@ public class ProblemaReinasView extends VerticalLayout {
         tableroContainer.removeAll();
         casillas.clear();
 
-        // Configurar grid CSS
         tableroContainer.getStyle()
                 .set("grid-template-columns", "repeat(" + tamaño + ", 1fr)")
                 .set("grid-template-rows", "repeat(" + tamaño + ", 1fr)");
@@ -125,7 +125,6 @@ public class ProblemaReinasView extends VerticalLayout {
     private void actualizarTableroVisual() {
         List<PiezaReinas> reinas = controller.getSolucion();
 
-        // Limpiar todas las casillas
         for (Div casilla : casillas) {
             casilla.removeAll();
             casilla.getStyle().set("background-color",
@@ -134,13 +133,12 @@ public class ProblemaReinasView extends VerticalLayout {
                             ? "white" : "#f0f0f0");
         }
 
-        // Colocar las reinas
         for (PiezaReinas reina : reinas) {
             int index = reina.getFila() * controller.getTamaño() + reina.getColumna();
             Div casilla = casillas.get(index);
 
             Div reinaVisual = new Div();
-            reinaVisual.setText("♛"); // Símbolo de reina
+            reinaVisual.setText("♛");
             reinaVisual.getStyle()
                     .set("font-size", "24px")
                     .set("color", "red");
@@ -157,6 +155,56 @@ public class ProblemaReinasView extends VerticalLayout {
         } else {
             Notification.show("Aún no es una solución válida. Faltan reinas o hay conflictos.",
                     3000, Position.MIDDLE);
+        }
+    }
+
+    private void mostrarDialogoResolucion() {
+        if (controller == null) {
+            Notification.show("Primero crea un tablero", 3000, Position.MIDDLE);
+            return;
+        }
+
+        Dialog dialogo = new Dialog();
+        VerticalLayout layoutDialogo = new VerticalLayout();
+
+        IntegerField filaField = new IntegerField("Fila inicial (0-" + (controller.getTamaño()-1) + ")");
+        filaField.setMin(0);
+        filaField.setMax(controller.getTamaño()-1);
+        filaField.setValue(0);
+
+        IntegerField columnaField = new IntegerField("Columna inicial (0-" + (controller.getTamaño()-1) + ")");
+        columnaField.setMin(0);
+        columnaField.setMax(controller.getTamaño()-1);
+        columnaField.setValue(0);
+
+        Button resolverBtn = new Button("Resolver", e -> {
+            resolverDesdePosicion(filaField.getValue(), columnaField.getValue());
+            dialogo.close();
+        });
+
+        Button cancelarBtn = new Button("Cancelar", e -> dialogo.close());
+
+        layoutDialogo.add(
+                new H3("Resolver desde posición inicial"),
+                filaField,
+                columnaField,
+                new HorizontalLayout(resolverBtn, cancelarBtn)
+        );
+        layoutDialogo.setAlignItems(Alignment.CENTER);
+        layoutDialogo.setSpacing(true);
+
+        dialogo.add(layoutDialogo);
+        dialogo.open();
+    }
+
+    private void resolverDesdePosicion(int filaInicial, int columnaInicial) {
+        if (controller.resolverDesdePosicion(filaInicial, columnaInicial)) {
+            actualizarTableroVisual();
+            Notification.show("Solución encontrada colocando la primera reina en (" +
+                    filaInicial + "," + columnaInicial + ")", 3000, Position.MIDDLE);
+        } else {
+            Notification.show("No se encontró solución con la reina inicial en (" +
+                    filaInicial + "," + columnaInicial + ")", 3000, Position.MIDDLE);
         }
     }
 }
