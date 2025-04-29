@@ -1,16 +1,13 @@
 package com.example.application.view.problemaHanoi;
 
 import com.example.application.controller.problemaHanoi.HanoiController;
-import com.example.application.model.problemaHanoi.Disco;
 import com.example.application.model.problemaHanoi.Torre;
+import com.example.application.model.problemaHanoi.Disco;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.Notification.Position;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
@@ -26,8 +23,9 @@ public class HanoiView extends VerticalLayout {
     private HanoiController controller;
     private final IntegerField discosField;
     private final Map<Torre, VerticalLayout> torreVisualMap = new HashMap<>();
-    private final ComboBox<Torre> origenCombo;
-    private final ComboBox<Torre> destinoCombo;
+    private Torre torreSeleccionada = null;
+    private final Button resolverBtn;
+    private final Div estadoDiv; // Cambiado de Label a Div
 
     public HanoiView() {
         setAlignItems(Alignment.CENTER);
@@ -44,29 +42,25 @@ public class HanoiView extends VerticalLayout {
 
         Button iniciarBtn = new Button("Iniciar Juego", e -> iniciarJuego());
         Button reiniciarBtn = new Button("Reiniciar", e -> reiniciarJuego());
-        Button resolverBtn = new Button("Resolver Automático", e -> mostrarDialogoResolucion());
+        resolverBtn = new Button("Resolver Automático", e -> mostrarDialogoResolucion());
+
+        // Usando Div en lugar de Label
+        estadoDiv = new Div();
+        estadoDiv.setText("Seleccione una torre para comenzar");
+        estadoDiv.getStyle()
+                .set("font-weight", "bold")
+                .set("margin", "10px 0");
 
         HorizontalLayout torresLayout = new HorizontalLayout();
         torresLayout.setWidthFull();
         torresLayout.setJustifyContentMode(JustifyContentMode.CENTER);
         torresLayout.setSpacing(true);
 
-        origenCombo = new ComboBox<>("Torre origen");
-        destinoCombo = new ComboBox<>("Torre destino");
-        Button moverBtn = new Button("Mover Disco", e -> moverDisco());
-
-        HorizontalLayout controlesLayout = new HorizontalLayout(
-                origenCombo,
-                destinoCombo,
-                moverBtn
-        );
-        controlesLayout.setAlignItems(Alignment.END);
-
         add(
                 titulo,
                 new HorizontalLayout(discosField, iniciarBtn, reiniciarBtn, resolverBtn),
-                torresLayout,
-                controlesLayout
+                estadoDiv, // Div en lugar de Label
+                torresLayout
         );
     }
 
@@ -74,14 +68,15 @@ public class HanoiView extends VerticalLayout {
         int numDiscos = discosField.getValue();
         controller = new HanoiController(numDiscos);
         crearTorresVisuales();
-        actualizarCombos();
-        Notification.show("Juego iniciado con " + numDiscos + " discos", 3000, Position.MIDDLE);
+        estadoDiv.setText("Seleccione la torre de origen"); // Actualizado
+        Notification.show("Juego iniciado con " + numDiscos + " discos", 3000, Notification.Position.MIDDLE);
     }
 
     private void crearTorresVisuales() {
-        HorizontalLayout torresLayout = (HorizontalLayout) getComponentAt(2);
+        HorizontalLayout torresLayout = (HorizontalLayout) getComponentAt(3);
         torresLayout.removeAll();
         torreVisualMap.clear();
+        torreSeleccionada = null;
 
         for (Torre torre : new Torre[]{controller.getJuego().getTorreA(),
                 controller.getJuego().getTorreB(),
@@ -94,7 +89,10 @@ public class HanoiView extends VerticalLayout {
                     .set("border-radius", "5px")
                     .set("background", "#f5f5f5")
                     .set("align-items", "center")
-                    .set("justify-content", "flex-end");
+                    .set("justify-content", "flex-end")
+                    .set("cursor", "pointer");
+
+            torreVisual.addClickListener(e -> manejarClicTorre(torre));
 
             torreVisualMap.put(torre, torreVisual);
             torresLayout.add(torreVisual);
@@ -103,12 +101,52 @@ public class HanoiView extends VerticalLayout {
         actualizarTorresVisuales();
     }
 
+    private void manejarClicTorre(Torre torre) {
+        if (torreSeleccionada == null) {
+            if (!torre.estaVacia()) {
+                torreSeleccionada = torre;
+                resaltarTorre(torre, true);
+                estadoDiv.setText("Seleccione la torre destino"); // Actualizado
+            } else {
+                Notification.show("La torre seleccionada está vacía", 3000, Notification.Position.MIDDLE);
+            }
+        } else {
+            resaltarTorre(torreSeleccionada, false);
+
+            if (torreSeleccionada == torre) {
+                estadoDiv.setText("Seleccione la torre de origen"); // Actualizado
+            } else {
+                if (controller.moverDisco(torreSeleccionada, torre)) {
+                    actualizarTorresVisuales();
+                    estadoDiv.setText("Movimiento realizado. Seleccione la torre de origen"); // Actualizado
+
+                    if (controller.juegoCompletado()) {
+                        Notification.show("¡Felicidades! Has completado el juego en " +
+                                        controller.getMovimientos() + " movimientos.",
+                                5000, Notification.Position.MIDDLE);
+                    }
+                } else {
+                    Notification.show("Movimiento no válido", 3000, Notification.Position.MIDDLE);
+                    estadoDiv.setText("Seleccione la torre de origen"); // Actualizado
+                }
+            }
+            torreSeleccionada = null;
+        }
+    }
+
+    private void resaltarTorre(Torre torre, boolean resaltar) {
+        VerticalLayout torreVisual = torreVisualMap.get(torre);
+        if (resaltar) {
+            torreVisual.getStyle().set("border", "3px solid #FF5722");
+        } else {
+            torreVisual.getStyle().set("border", "2px solid #333");
+        }
+    }
 
     private void actualizarTorresVisuales() {
         torreVisualMap.forEach((torre, layout) -> {
             layout.removeAll();
 
-            // Base de la torre
             Div base = new Div();
             base.setWidth("180px");
             base.setHeight("10px");
@@ -117,12 +155,10 @@ public class HanoiView extends VerticalLayout {
                     .set("margin-top", "auto");
             layout.add(base);
 
-            // Espaciador para alinear los discos en la parte inferior
             Div spacer = new Div();
             spacer.getStyle().set("flex-grow", "1");
             layout.add(spacer);
 
-            // Discos (en orden correcto)
             for (int i = torre.getDiscos().size() - 1; i >= 0; i--) {
                 Disco disco = torre.getDiscos().get(i);
                 Div discoVisual = new Div();
@@ -138,71 +174,20 @@ public class HanoiView extends VerticalLayout {
         });
     }
 
-    private void actualizarCombos() {
-        // Configurar ComboBox con nombres personalizados
-        origenCombo.setItems(
-                controller.getJuego().getTorreA(),
-                controller.getJuego().getTorreB(),
-                controller.getJuego().getTorreC()
-        );
-
-        destinoCombo.setItems(
-                controller.getJuego().getTorreA(),
-                controller.getJuego().getTorreB(),
-                controller.getJuego().getTorreC()
-        );
-
-        // Establecer cómo mostrar los nombres de las torres
-        origenCombo.setItemLabelGenerator(torre -> {
-            if (torre == controller.getJuego().getTorreA()) return "Torre 1";
-            if (torre == controller.getJuego().getTorreB()) return "Torre 2";
-            return "Torre 3";
-        });
-
-        destinoCombo.setItemLabelGenerator(torre -> {
-            if (torre == controller.getJuego().getTorreA()) return "Torre 1";
-            if (torre == controller.getJuego().getTorreB()) return "Torre 2";
-            return "Torre 3";
-        });
-    }
-
-    private void moverDisco() {
-        Torre origen = origenCombo.getValue();
-        Torre destino = destinoCombo.getValue();
-
-        if (origen == null || destino == null) {
-            Notification.show("Selecciona torre origen y destino", 3000, Position.MIDDLE);
-            return;
-        }
-
-        if (controller.moverDisco(origen, destino)) {
-            actualizarTorresVisuales();
-            Notification.show("Movimiento realizado. Total: " + controller.getMovimientos(),
-                    3000, Position.MIDDLE);
-
-            if (controller.juegoCompletado()) {
-                Notification.show("¡Felicidades! Has completado el juego en " +
-                                controller.getMovimientos() + " movimientos.",
-                        5000, Position.MIDDLE);
-            }
-        } else {
-            Notification.show("Movimiento no válido", 3000, Position.MIDDLE);
-        }
-    }
-
     private void reiniciarJuego() {
         if (controller != null) {
             controller.reiniciar();
             actualizarTorresVisuales();
-            Notification.show("Juego reiniciado", 3000, Position.MIDDLE);
+            estadoDiv.setText("Seleccione la torre de origen"); // Actualizado
+            Notification.show("Juego reiniciado", 3000, Notification.Position.MIDDLE);
         } else {
-            Notification.show("Primero inicia un juego", 3000, Position.MIDDLE);
+            Notification.show("Primero inicia un juego", 3000, Notification.Position.MIDDLE);
         }
     }
 
     private void mostrarDialogoResolucion() {
         if (controller == null) {
-            Notification.show("Primero inicia un juego", 3000, Position.MIDDLE);
+            Notification.show("Primero inicia un juego", 3000, Notification.Position.MIDDLE);
             return;
         }
 
@@ -230,24 +215,25 @@ public class HanoiView extends VerticalLayout {
     private void resolverAutomatico() {
         controller.reiniciar();
         actualizarTorresVisuales();
+        estadoDiv.setText("Resolviendo automáticamente..."); // Actualizado
 
         new Thread(() -> {
             try {
                 controller.resolverAutomatico();
 
-                // Animación de los movimientos
                 for (String movimiento : controller.getHistorial()) {
-                    Thread.sleep(500); // Pausa entre movimientos
+                    Thread.sleep(500);
 
                     getUI().ifPresent(ui -> ui.access(() -> {
-                        Notification.show(movimiento, 1000, Position.BOTTOM_START);
+                        Notification.show(movimiento, 1000, Notification.Position.BOTTOM_START);
                         actualizarTorresVisuales();
                     }));
                 }
 
                 getUI().ifPresent(ui -> ui.access(() -> {
+                    estadoDiv.setText("¡Resuelto en " + controller.getMovimientos() + " movimientos!");
                     Notification.show("¡Resuelto en " + controller.getMovimientos() + " movimientos!",
-                            3000, Position.MIDDLE);
+                            3000, Notification.Position.MIDDLE);
                 }));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

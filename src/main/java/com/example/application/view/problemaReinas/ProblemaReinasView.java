@@ -34,7 +34,7 @@ public class ProblemaReinasView extends VerticalLayout {
         setSizeFull();
 
         // Componentes UI
-        H1 titulo = new H1("Problema de las N Reinas - Modo Jugable");
+        H1 titulo = new H1("Problema de las N Reinas");
 
         tamañoField = new IntegerField("Tamaño del tablero (N)");
         tamañoField.setValue(8);
