@@ -13,13 +13,13 @@ import java.util.List;
 
 @PageTitle("Historial de Partidas")
 @Route(value = "historial-reinas")
-public class HistorialPartidasView extends VerticalLayout {
+public class HistorialReinasView extends VerticalLayout {
 
     private final PartidaReinasRepository partidaReinasRepository;
     private final Grid<PartidaReinas> grid;
 
     @Autowired
-    public HistorialPartidasView(PartidaReinasRepository partidaReinasRepository) {
+    public HistorialReinasView(PartidaReinasRepository partidaReinasRepository) {
         this.partidaReinasRepository = partidaReinasRepository;
 
         setSizeFull();

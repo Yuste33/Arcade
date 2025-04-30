@@ -6,5 +6,4 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PartidaReinasRepository extends JpaRepository<PartidaReinas, Long> {
-    // Puedes agregar métodos personalizados aquí si los necesitas
 }
