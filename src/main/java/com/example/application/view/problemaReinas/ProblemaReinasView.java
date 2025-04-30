@@ -4,6 +4,7 @@ import com.example.application.controller.problemaReinas.ProblemaReinasControlle
 import com.example.application.model.PartidaReinas;
 import com.example.application.model.problemaReinas.PiezaReinas;
 import com.example.application.repository.PartidaReinasRepository;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
@@ -30,8 +31,8 @@ public class ProblemaReinasView extends VerticalLayout {
     private final IntegerField tamañoField;
     private final Div tableroContainer;
     private final List<Div> casillas;
-    private final Button comprobarBtn;
-    private final Button resolverAutomaticoBtn;
+    private final Button guardarBtn;
+    private final Div contadorReinas;
 
     @Autowired
     public ProblemaReinasView(PartidaReinasRepository partidaReinasRepository) {
@@ -40,8 +41,20 @@ public class ProblemaReinasView extends VerticalLayout {
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
         setPadding(true);
-        setSizeFull();
 
+        // Botones de navegación
+        Button volverInicioBtn = new Button("Volver al Inicio", e -> {
+            UI.getCurrent().navigate("");
+        });
+
+        Button verHistorialBtn = new Button("Ver Historial", e -> {
+            UI.getCurrent().navigate("historial-reinas");
+        });
+
+        HorizontalLayout navegacionLayout = new HorizontalLayout(volverInicioBtn, verHistorialBtn);
+        navegacionLayout.setSpacing(true);
+
+        // Componentes principales
         H1 titulo = new H1("Problema de las N Reinas");
 
         tamañoField = new IntegerField("Tamaño del tablero (N)");
@@ -50,22 +63,30 @@ public class ProblemaReinasView extends VerticalLayout {
         tamañoField.setMax(12);
 
         Button iniciarBtn = new Button("Crear Tablero", e -> iniciarJuego());
-        comprobarBtn = new Button("Comprobar Solución", e -> comprobarSolucion());
-        comprobarBtn.setEnabled(false);
+        guardarBtn = new Button("Guardar Partida", e -> guardarPartida());
+        guardarBtn.setEnabled(false);
 
-        resolverAutomaticoBtn = new Button("Resolver Automático", e -> mostrarDialogoResolucion());
-        resolverAutomaticoBtn.setEnabled(false);
+        Button resolverAutomaticoBtn = new Button("Resolver Automático", e -> mostrarDialogoResolucion());
+
+        contadorReinas = new Div();
+        contadorReinas.getStyle()
+                .set("font-weight", "bold")
+                .set("margin", "10px");
 
         tableroContainer = new Div();
         tableroContainer.setWidth("600px");
         tableroContainer.setHeight("600px");
-        tableroContainer.getStyle().set("margin", "auto").set("display", "grid");
+        tableroContainer.getStyle()
+                .set("margin", "auto")
+                .set("display", "grid");
 
         casillas = new ArrayList<>();
 
         add(
+                navegacionLayout,
                 titulo,
-                new HorizontalLayout(tamañoField, iniciarBtn, comprobarBtn, resolverAutomaticoBtn),
+                new HorizontalLayout(tamañoField, iniciarBtn, guardarBtn, resolverAutomaticoBtn),
+                contadorReinas,
                 tableroContainer
         );
     }
@@ -75,8 +96,8 @@ public class ProblemaReinasView extends VerticalLayout {
             int tamaño = tamañoField.getValue();
             controller = new ProblemaReinasController(tamaño);
             crearTableroVisual(tamaño);
-            comprobarBtn.setEnabled(true);
-            resolverAutomaticoBtn.setEnabled(true);
+            guardarBtn.setEnabled(false);
+            actualizarContador();
             Notification.show("Tablero de " + tamaño + "x" + tamaño + " creado", 3000, Position.MIDDLE);
         } catch (Exception e) {
             Notification.show("Error al crear tablero: " + e.getMessage(), 3000, Position.MIDDLE);
@@ -112,6 +133,8 @@ public class ProblemaReinasView extends VerticalLayout {
                         PiezaReinas reina = new PiezaReinas(currentFila, currentCol);
                         if (controller.agregarReina(reina)) {
                             actualizarTableroVisual();
+                            guardarBtn.setEnabled(true);
+                            actualizarContador();
                             Notification.show("Reina colocada en (" + (currentFila+1) + "," + (currentCol+1) + ")",
                                     2000, Position.BOTTOM_START);
                         }
@@ -156,21 +179,72 @@ public class ProblemaReinasView extends VerticalLayout {
         }
     }
 
-    private void comprobarSolucion() {
-        if (controller == null) return;
+    private void actualizarContador() {
+        if (controller != null) {
+            contadorReinas.setText("Reinas colocadas: " + controller.getSolucion().size() +
+                    "/" + controller.getTamaño());
+        }
+    }
 
-        boolean solucion = controller.solucionCompleta();
-        boolean resultado = solucion;
-
-        if (solucion) {
-            Notification.show("¡Correcto! Has colocado todas las reinas sin conflictos.",
-                    3000, Position.MIDDLE);
-        } else {
-            Notification.show("Aún no es una solución válida. Faltan reinas o hay conflictos.",
-                    3000, Position.MIDDLE);
+    private void guardarPartida() {
+        if (controller == null || controller.getSolucion().isEmpty()) {
+            Notification.show("No hay reinas colocadas para guardar", 3000, Position.MIDDLE);
+            return;
         }
 
-        guardarResultadoEnBD(resultado);
+        boolean estaResuelto = controller.solucionCompleta();
+        Dialog dialogo = new Dialog();
+        VerticalLayout layout = new VerticalLayout();
+
+        H3 pregunta = new H3(estaResuelto ?
+                "¡Solución completa! Guardar como solución finalizada" :
+                "Guardar progreso actual");
+
+        Button btnResuelta = new Button("Guardar como resuelta", e -> {
+            guardarEnBD(true);
+            dialogo.close();
+        });
+        btnResuelta.setEnabled(estaResuelto);
+
+        Button btnProgreso = new Button("Guardar progreso", e -> {
+            guardarEnBD(false);
+            dialogo.close();
+        });
+        btnProgreso.setEnabled(!estaResuelto);
+
+        // Estilo para botones deshabilitados
+        if (!estaResuelto) {
+            btnResuelta.getElement().getStyle().set("color", "var(--lumo-disabled-text-color)");
+            btnResuelta.getElement().getStyle().set("background-color", "var(--lumo-contrast-5pct)");
+            btnResuelta.getElement().getStyle().set("cursor", "not-allowed");
+        }
+
+        if (estaResuelto) {
+            btnProgreso.getElement().getStyle().set("color", "var(--lumo-disabled-text-color)");
+            btnProgreso.getElement().getStyle().set("background-color", "var(--lumo-contrast-5pct)");
+            btnProgreso.getElement().getStyle().set("cursor", "not-allowed");
+        }
+
+        layout.add(
+                pregunta,
+                new HorizontalLayout(btnResuelta, btnProgreso)
+        );
+        layout.setAlignItems(Alignment.CENTER);
+        dialogo.add(layout);
+        dialogo.open();
+    }
+
+    private void guardarEnBD(boolean resuelto) {
+        PartidaReinas partida = new PartidaReinas();
+        partida.setN(controller.getTamaño());
+        partida.setResuelto(resuelto);
+        partida.setIntentos(controller.getSolucion().size()); // Usamos el número de reinas colocadas como "intentos"
+        partidaReinasRepository.save(partida);
+
+        String mensaje = resuelto
+                ? "Partida guardada como RESUELTA"
+                : "Progreso guardado (" + partida.getIntentos() + " reinas colocadas)";
+        Notification.show(mensaje, 3000, Position.MIDDLE);
     }
 
     private void mostrarDialogoResolucion() {
@@ -195,12 +269,13 @@ public class ProblemaReinasView extends VerticalLayout {
         Button resolverBtn = new Button("Resolver", e -> {
             boolean exito = controller.resolverDesdePosicion(filaField.getValue(), columnaField.getValue());
             actualizarTableroVisual();
+            guardarBtn.setEnabled(true);
+            actualizarContador();
 
             Notification.show(exito ?
                     "Solución encontrada." :
                     "No se encontró solución con esa posición.", 3000, Position.MIDDLE);
 
-            guardarResultadoEnBD(exito);
             dialogo.close();
         });
 
@@ -217,15 +292,5 @@ public class ProblemaReinasView extends VerticalLayout {
 
         dialogo.add(layoutDialogo);
         dialogo.open();
-    }
-
-    private void guardarResultadoEnBD(boolean fueResuelto) {
-        if (controller == null) return;
-
-        PartidaReinas partida = new PartidaReinas();
-        partida.setN(controller.getTamaño());
-        partida.setResuelto(fueResuelto);
-        partida.setIntentos(controller.getNumeroIntentos());
-        partidaReinasRepository.save(partida);
     }
 }

@@ -2,44 +2,44 @@ package com.example.application.view.problemaReinas;
 
 import com.example.application.model.PartidaReinas;
 import com.example.application.repository.PartidaReinasRepository;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-
-@PageTitle("Historial de Partidas")
+@PageTitle("Historial Reinas")
 @Route(value = "historial-reinas")
 public class HistorialReinasView extends VerticalLayout {
 
-    private final PartidaReinasRepository partidaReinasRepository;
-    private final Grid<PartidaReinas> grid;
+    public HistorialReinasView(@Autowired PartidaReinasRepository repository) {
+        // Botones de navegación (NUEVO)
+        Button volverBtn = new Button("Volver al Juego", e -> {
+            getUI().ifPresent(ui -> ui.navigate("reinas"));
+        });
 
-    @Autowired
-    public HistorialReinasView(PartidaReinasRepository partidaReinasRepository) {
-        this.partidaReinasRepository = partidaReinasRepository;
+        Button inicioBtn = new Button("Inicio", e -> {
+            getUI().ifPresent(ui -> ui.navigate(""));
+        });
 
-        setSizeFull();
-        setPadding(true);
-        setSpacing(true);
+        HorizontalLayout botonesNavegacion = new HorizontalLayout(volverBtn, inicioBtn);
+        botonesNavegacion.setSpacing(true);
 
-        H1 titulo = new H1("Historial de Partidas del Problema de las Reinas");
+        // Grid de historial
+        Grid<PartidaReinas> grid = new Grid<>(PartidaReinas.class, false);
+        grid.addColumn(PartidaReinas::getN).setHeader("Tamaño (N)");
+        grid.addColumn(p -> p.isResuelto() ? "Sí" : "No").setHeader("Resuelto");
+        grid.addColumn(PartidaReinas::getIntentos).setHeader("Reinas Colocadas");
 
-        grid = new Grid<>(PartidaReinas.class, false);
-        grid.addColumn(PartidaReinas::getN).setHeader("Tamaño del tablero");
-        grid.addColumn(partida -> partida.isResuelto() ? "Sí" : "No").setHeader("Resuelto");
-        grid.addColumn(PartidaReinas::getIntentos).setHeader("Intentos");
+        grid.setItems(repository.findAll());
 
-        cargarDatos();
-
-        add(titulo, grid);
-    }
-
-    private void cargarDatos() {
-        List<PartidaReinas> partidas = partidaReinasRepository.findAll();
-        grid.setItems(partidas);
+        add(
+                botonesNavegacion,
+                new H1("Historial de Partidas - Problema de las Reinas"),
+                grid
+        );
     }
 }
