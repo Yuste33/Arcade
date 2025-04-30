@@ -7,13 +7,23 @@ import java.util.List;
 
 public class HanoiController {
     private JuegoHanoi juego;
+    private int movimientos;
 
     public HanoiController(int numDiscos) {
         this.juego = new JuegoHanoi(numDiscos);
+        this.movimientos = 0; // Asegurarnos que se inicializa
     }
 
     public boolean moverDisco(Torre origen, Torre destino) {
-        return juego.moverDisco(origen, destino);
+        boolean movimientoValido = juego.moverDisco(origen, destino);
+        if (movimientoValido) {
+            movimientos++; // Incrementar contador
+        }
+        return movimientoValido;
+    }
+
+    public int getMovimientos() {
+        return movimientos;
     }
 
     public void resolverAutomatico() {
@@ -30,7 +40,6 @@ public class HanoiController {
 
     // Getters
     public JuegoHanoi getJuego() { return juego; }
-    public int getMovimientos() { return juego.getMovimientos(); }
     public int getNumDiscos() { return juego.getNumDiscos(); }
     public List<String> getHistorial() { return juego.getHistorial(); }
 }

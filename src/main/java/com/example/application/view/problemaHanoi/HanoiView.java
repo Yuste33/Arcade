@@ -1,8 +1,10 @@
 package com.example.application.view.problemaHanoi;
 
 import com.example.application.controller.problemaHanoi.HanoiController;
+import com.example.application.model.PartidaHanoi;
 import com.example.application.model.problemaHanoi.Torre;
 import com.example.application.model.problemaHanoi.Disco;
+import com.example.application.repository.PartidaHanoiRepository;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -13,6 +15,8 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,9 +29,16 @@ public class HanoiView extends VerticalLayout {
     private final Map<Torre, VerticalLayout> torreVisualMap = new HashMap<>();
     private Torre torreSeleccionada = null;
     private final Button resolverBtn;
-    private final Div estadoDiv; // Cambiado de Label a Div
+    private final Div estadoDiv;
+    private final PartidaHanoiRepository partidaHanoiRepository;
+    private final Button guardarBtn;
+    private final Button historialBtn;
+    private final Button volverInicioBtn; // Nuevo botón
 
-    public HanoiView() {
+    @Autowired
+    public HanoiView(PartidaHanoiRepository partidaHanoiRepository) {
+        this.partidaHanoiRepository = partidaHanoiRepository;
+
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
         setPadding(true);
@@ -43,6 +54,10 @@ public class HanoiView extends VerticalLayout {
         Button iniciarBtn = new Button("Iniciar Juego", e -> iniciarJuego());
         Button reiniciarBtn = new Button("Reiniciar", e -> reiniciarJuego());
         resolverBtn = new Button("Resolver Automático", e -> mostrarDialogoResolucion());
+        guardarBtn = new Button("Guardar Partida", e -> guardarPartida());
+        guardarBtn.setEnabled(false);
+        historialBtn = new Button("Ver Historial", e -> verHistorial());
+        volverInicioBtn = new Button("Volver al Inicio", e -> volverAlInicio()); // Nuevo botón
 
         // Usando Div en lugar de Label
         estadoDiv = new Div();
@@ -58,10 +73,41 @@ public class HanoiView extends VerticalLayout {
 
         add(
                 titulo,
-                new HorizontalLayout(discosField, iniciarBtn, reiniciarBtn, resolverBtn),
-                estadoDiv, // Div en lugar de Label
+                new HorizontalLayout(discosField, iniciarBtn, reiniciarBtn, resolverBtn, guardarBtn, historialBtn, volverInicioBtn),
+                estadoDiv,
                 torresLayout
         );
+    }
+
+    // Método para volver al inicio
+    private void volverAlInicio() {
+        UI.getCurrent().navigate(""); // Navega a la ruta raíz
+    }
+
+    private void guardarPartida() {
+        try {
+            if (controller == null || controller.getMovimientos() == 0) {
+                Notification.show("Realice al menos un movimiento antes de guardar", 3000, Notification.Position.MIDDLE);
+                return;
+            }
+
+            PartidaHanoi partida = new PartidaHanoi();
+            partida.setNumDiscos(controller.getNumDiscos());
+            partida.setResuelto(controller.juegoCompletado());
+            partida.setMovimientos(controller.getMovimientos());
+
+            partidaHanoiRepository.save(partida);
+
+            Notification.show("Partida guardada correctamente", 3000, Notification.Position.MIDDLE);
+            guardarBtn.setEnabled(false); // Opcional: deshabilitar después de guardar
+
+        } catch (Exception e) {
+            Notification.show("Error al guardar: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
+        }
+    }
+
+    private void verHistorial() {
+        UI.getCurrent().navigate("historial-hanoi");
     }
 
     private void iniciarJuego() {
@@ -106,28 +152,19 @@ public class HanoiView extends VerticalLayout {
             if (!torre.estaVacia()) {
                 torreSeleccionada = torre;
                 resaltarTorre(torre, true);
-                estadoDiv.setText("Seleccione la torre destino"); // Actualizado
-            } else {
-                Notification.show("La torre seleccionada está vacía", 3000, Notification.Position.MIDDLE);
+                estadoDiv.setText("Seleccione la torre destino");
             }
         } else {
             resaltarTorre(torreSeleccionada, false);
 
-            if (torreSeleccionada == torre) {
-                estadoDiv.setText("Seleccione la torre de origen"); // Actualizado
-            } else {
-                if (controller.moverDisco(torreSeleccionada, torre)) {
-                    actualizarTorresVisuales();
-                    estadoDiv.setText("Movimiento realizado. Seleccione la torre de origen"); // Actualizado
+            if (controller.moverDisco(torreSeleccionada, torre)) {
+                actualizarTorresVisuales();
+                estadoDiv.setText("Movimiento realizado (" + controller.getMovimientos() + "). Seleccione la torre de origen");
+                guardarBtn.setEnabled(true); // Habilitar guardado
 
-                    if (controller.juegoCompletado()) {
-                        Notification.show("¡Felicidades! Has completado el juego en " +
-                                        controller.getMovimientos() + " movimientos.",
-                                5000, Notification.Position.MIDDLE);
-                    }
-                } else {
-                    Notification.show("Movimiento no válido", 3000, Notification.Position.MIDDLE);
-                    estadoDiv.setText("Seleccione la torre de origen"); // Actualizado
+                if (controller.juegoCompletado()) {
+                    estadoDiv.setText("¡Juego completado en " + controller.getMovimientos() + " movimientos!");
+                    guardarBtn.setEnabled(true);
                 }
             }
             torreSeleccionada = null;
