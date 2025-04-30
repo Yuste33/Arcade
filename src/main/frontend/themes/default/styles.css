@@ -1,0 +1,144 @@
+/* frontend/styles/arcade.css */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+    --arcade-orange: #ff6e00;
+    --arcade-orange-glow: #ff9e00;
+    --arcade-dark-blue: #0a0a2a;
+    --arcade-mid-blue: #1a1a4a;
+    --arcade-light-blue: #00a2ff;
+    --arcade-yellow: #ffcc00;
+    --arcade-white: #f0f0f0;
+}
+
+body, .arcade-theme {
+    background-color: var(--arcade-dark-blue);
+    color: var(--arcade-orange);
+    font-family: 'Press Start 2P', monospace;
+    text-shadow: 0 0 3px var(--arcade-orange-glow);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Buttons */
+.arcade-button {
+    background-color: var(--arcade-mid-blue);
+    color: var(--arcade-orange);
+    border: 3px solid var(--arcade-orange);
+    text-shadow: 0 0 3px var(--arcade-orange-glow);
+    box-shadow: 0 0 8px var(--arcade-orange);
+    font-family: 'Press Start 2P', monospace;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+.arcade-button:hover {
+    transform: scale(1.03);
+    background-color: #25255a;
+    box-shadow: 0 0 12px var(--arcade-orange);
+}
+
+/* Game board elements */
+.arcade-tile {
+    border: 2px solid var(--arcade-light-blue);
+    background-color: var(--arcade-mid-blue);
+    box-shadow: inset 0 0 8px rgba(0, 162, 255, 0.6);
+    color: var(--arcade-orange);
+    font-weight: bold;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 3px var(--arcade-orange-glow);
+}
+
+.arcade-queen {
+    font-size: 1.4rem;
+    color: var(--arcade-yellow);
+    text-shadow: 0 0 5px var(--arcade-yellow);
+}
+
+.arcade-board {
+    border: 3px solid var(--arcade-orange);
+    box-shadow: 0 0 15px var(--arcade-orange);
+    margin-top: 20px;
+    background-color: var(--arcade-dark-blue);
+}
+
+/* Global history/records styling */
+[class*="historial"],
+[class*="history"],
+[class*="record"],
+[class*="stats"] {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 20px auto;
+    background-color: var(--arcade-mid-blue);
+    border: 3px solid var(--arcade-orange);
+    box-shadow: 0 0 15px var(--arcade-orange);
+    border-radius: 5px;
+}
+
+[class*="historial"] h1,
+[class*="history"] h1,
+[class*="record"] h1,
+[class*="stats"] h1 {
+    color: var(--arcade-light-blue);
+    text-shadow: 0 0 5px var(--arcade-light-blue);
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    text-align: center;
+    border-bottom: 2px solid var(--arcade-orange);
+    padding-bottom: 10px;
+}
+
+/* Vaadin Grid styling */
+vaadin-grid {
+    background-color: var(--arcade-mid-blue);
+    border: 2px solid var(--arcade-orange);
+    box-shadow: 0 0 10px var(--arcade-orange);
+    margin-bottom: 20px;
+}
+
+vaadin-grid::part(header-cell) {
+    background-color: var(--arcade-dark-blue);
+    color: var(--arcade-orange);
+    font-weight: bold;
+    text-shadow: 0 0 2px var(--arcade-orange-glow);
+    border-bottom: 2px solid var(--arcade-orange);
+}
+
+vaadin-grid::part(cell) {
+    background-color: var(--arcade-mid-blue);
+    color: var(--arcade-yellow);
+    border-bottom: 1px solid rgba(0, 162, 255, 0.3);
+}
+
+/* Pixel-perfect elements */
+canvas, img {
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* Text clarity */
+h1, h2, h3, p, button, div {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Special effects */
+@keyframes arcade-glow {
+    0% { text-shadow: 0 0 3px var(--arcade-orange-glow); }
+    50% { text-shadow: 0 0 8px var(--arcade-orange-glow); }
+    100% { text-shadow: 0 0 3px var(--arcade-orange-glow); }
+}
+
+.arcade-highlight {
+    animation: arcade-glow 1.5s infinite;
+}

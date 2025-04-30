@@ -1,9 +1,9 @@
-package com.example.application.view.problemaReinas;
+package com.example.application.view.problemaCaballos;
 
-import com.example.application.controller.problemaReinas.ProblemaReinasController;
-import com.example.application.model.PartidaReinas;
-import com.example.application.model.problemaReinas.PiezaReinas;
-import com.example.application.repository.PartidaReinasRepository;
+import com.example.application.controller.problemaCaballos.ProblemaCaballosController;
+import com.example.application.model.PartidaCaballos;
+import com.example.application.model.problemaCaballos.PiezaCaballo;
+import com.example.application.repository.PartidaCaballosRepository;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -17,26 +17,23 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.vaadin.flow.router.RouterLink;
 
-import java.util.ArrayList;
 import java.util.List;
 
-@PageTitle("Problema de las Reinas")
-@Route(value = "reinas")
-public class ProblemaReinasView extends VerticalLayout {
+@PageTitle("Recorrido del Caballo")
+@Route(value = "caballos")
+public class ProblemaCaballosView extends VerticalLayout {
 
-    private final PartidaReinasRepository partidaReinasRepository;
-    private ProblemaReinasController controller;
+    private final PartidaCaballosRepository partidaCaballosRepository;
+    private ProblemaCaballosController controller;
     private final IntegerField tamañoField;
     private final Div tableroContainer;
-    private final List<Div> casillas;
     private final Button guardarBtn;
-    private final Div contadorReinas;
+    private final Div contadorMovimientos;
 
-    @Autowired
-    public ProblemaReinasView(PartidaReinasRepository partidaReinasRepository) {
-        this.partidaReinasRepository = partidaReinasRepository;
+    public ProblemaCaballosView(PartidaCaballosRepository partidaCaballosRepository) {
+        this.partidaCaballosRepository = partidaCaballosRepository;
 
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
@@ -48,28 +45,26 @@ public class ProblemaReinasView extends VerticalLayout {
         });
 
         Button verHistorialBtn = new Button("Ver Historial", e -> {
-            UI.getCurrent().navigate("historial-reinas");
+            UI.getCurrent().navigate("historial-caballos");
         });
 
         HorizontalLayout navegacionLayout = new HorizontalLayout(volverInicioBtn, verHistorialBtn);
         navegacionLayout.setSpacing(true);
 
-        // Componentes principales
-        H1 titulo = new H1("Problema de las N Reinas");
-
-        tamañoField = new IntegerField("Tamaño del tablero (N)");
+        // Componentes UI principales
+        H1 titulo = new H1("Problema del Recorrido del Caballo");
+        tamañoField = new IntegerField("Tamaño del tablero");
         tamañoField.setValue(8);
-        tamañoField.setMin(4);
-        tamañoField.setMax(12);
+        tamañoField.setMin(5);
+        tamañoField.setMax(10);
 
         Button iniciarBtn = new Button("Crear Tablero", e -> iniciarJuego());
+        Button resolverBtn = new Button("Resolver Automático", e -> resolverAutomatico());
         guardarBtn = new Button("Guardar Partida", e -> guardarPartida());
         guardarBtn.setEnabled(false);
 
-        Button resolverAutomaticoBtn = new Button("Resolver Automático", e -> mostrarDialogoResolucion());
-
-        contadorReinas = new Div();
-        contadorReinas.getStyle()
+        contadorMovimientos = new Div();
+        contadorMovimientos.getStyle()
                 .set("font-weight", "bold")
                 .set("margin", "10px");
 
@@ -80,21 +75,20 @@ public class ProblemaReinasView extends VerticalLayout {
                 .set("margin", "auto")
                 .set("display", "grid");
 
-        casillas = new ArrayList<>();
-
         add(
-                navegacionLayout,
+                navegacionLayout, // Añadimos los botones de navegación primero
                 titulo,
-                new HorizontalLayout(tamañoField, iniciarBtn, guardarBtn, resolverAutomaticoBtn),
-                contadorReinas,
+                new HorizontalLayout(tamañoField, iniciarBtn, resolverBtn, guardarBtn),
+                contadorMovimientos,
                 tableroContainer
         );
     }
 
+    // ... (el resto de los métodos permanecen igual)
     private void iniciarJuego() {
         try {
             int tamaño = tamañoField.getValue();
-            controller = new ProblemaReinasController(tamaño);
+            controller = new ProblemaCaballosController(tamaño);
             crearTableroVisual(tamaño);
             guardarBtn.setEnabled(false);
             actualizarContador();
@@ -106,8 +100,6 @@ public class ProblemaReinasView extends VerticalLayout {
 
     private void crearTableroVisual(int tamaño) {
         tableroContainer.removeAll();
-        casillas.clear();
-
         tableroContainer.getStyle()
                 .set("grid-template-columns", "repeat(" + tamaño + ", 1fr)")
                 .set("grid-template-rows", "repeat(" + tamaño + ", 1fr)");
@@ -129,66 +121,52 @@ public class ProblemaReinasView extends VerticalLayout {
                         .set("background-color", (fila + col) % 2 == 0 ? "white" : "#f0f0f0");
 
                 casilla.addClickListener(e -> {
-                    if (controller != null && controller.esSeguro(currentFila, currentCol)) {
-                        PiezaReinas reina = new PiezaReinas(currentFila, currentCol);
-                        if (controller.agregarReina(reina)) {
-                            actualizarTableroVisual();
-                            guardarBtn.setEnabled(true);
-                            actualizarContador();
-                            Notification.show("Reina colocada en (" + (currentFila+1) + "," + (currentCol+1) + ")",
-                                    2000, Position.BOTTOM_START);
-                        }
+                    if (controller.agregarMovimiento(currentFila, currentCol)) {
+                        actualizarTableroVisual();
+                        guardarBtn.setEnabled(true);
+                        actualizarContador();
                     } else {
-                        Notification.show("¡Posición no válida! La reina está amenazada.",
-                                3000, Position.MIDDLE);
+                        Notification.show("Movimiento no válido", 3000, Position.MIDDLE);
                     }
                 });
-
-                casillas.add(casilla);
                 tableroContainer.add(casilla);
             }
         }
     }
 
     private void actualizarTableroVisual() {
+        int[][] estado = controller.getEstadoTablero();
         int tamaño = controller.getTamaño();
-        List<PiezaReinas> reinas = controller.getSolucion();
 
-        for (int i = 0; i < casillas.size(); i++) {
-            Div casilla = casillas.get(i);
-            casilla.removeAll();
+        for (int i = 0; i < tamaño; i++) {
+            for (int j = 0; j < tamaño; j++) {
+                int index = i * tamaño + j;
+                Div casilla = (Div) tableroContainer.getChildren().toArray()[index];
+                casilla.removeAll();
 
-            int fila = i / tamaño;
-            int col = i % tamaño;
-            String color = (fila + col) % 2 == 0 ? "white" : "#f0f0f0";
-            casilla.getStyle().set("background-color", color);
-        }
-
-        for (PiezaReinas reina : reinas) {
-            int index = reina.getFila() * tamaño + reina.getColumna();
-            Div casilla = casillas.get(index);
-
-            Div reinaVisual = new Div();
-            reinaVisual.setText("♛");
-            reinaVisual.getStyle()
-                    .set("font-size", "24px")
-                    .set("color", "red");
-
-            casilla.add(reinaVisual);
-            casilla.getStyle().set("background-color", "#ffdddd");
+                if (estado[i][j] != -1) {
+                    Div numero = new Div();
+                    numero.setText(String.valueOf(estado[i][j] + 1));
+                    numero.getStyle()
+                            .set("font-size", "18px")
+                            .set("font-weight", "bold")
+                            .set("color", "blue");
+                    casilla.add(numero);
+                    casilla.getStyle().set("background-color", "#d4edff");
+                }
+            }
         }
     }
 
     private void actualizarContador() {
         if (controller != null) {
-            contadorReinas.setText("Reinas colocadas: " + controller.getSolucion().size() +
-                    "/" + controller.getTamaño());
+            contadorMovimientos.setText("Movimientos: " + controller.getMovimientos().size());
         }
     }
 
     private void guardarPartida() {
-        if (controller == null || controller.getSolucion().isEmpty()) {
-            Notification.show("No hay reinas colocadas para guardar", 3000, Position.MIDDLE);
+        if (controller == null || controller.getMovimientos().isEmpty()) {
+            Notification.show("No hay movimientos para guardar", 3000, Position.MIDDLE);
             return;
         }
 
@@ -197,7 +175,7 @@ public class ProblemaReinasView extends VerticalLayout {
         VerticalLayout layout = new VerticalLayout();
 
         H3 pregunta = new H3(estaResuelto ?
-                "¡Solución completa! Guardar como solución finalizada" :
+                "¡Recorrido completo! Guardar como solución finalizada" :
                 "Guardar progreso actual");
 
         Button btnResuelta = new Button("Guardar como resuelta", e -> {
@@ -212,7 +190,10 @@ public class ProblemaReinasView extends VerticalLayout {
         });
         btnProgreso.setEnabled(!estaResuelto);
 
-        // Estilo para botones deshabilitados
+        String disabledStyle = "color: var(--lumo-disabled-text-color); " +
+                "background-color: var(--lumo-contrast-5pct); " +
+                "cursor: not-allowed;";
+
         if (!estaResuelto) {
             btnResuelta.getElement().getStyle().set("color", "var(--lumo-disabled-text-color)");
             btnResuelta.getElement().getStyle().set("background-color", "var(--lumo-contrast-5pct)");
@@ -235,19 +216,19 @@ public class ProblemaReinasView extends VerticalLayout {
     }
 
     private void guardarEnBD(boolean resuelto) {
-        PartidaReinas partida = new PartidaReinas();
-        partida.setN(controller.getTamaño());
+        PartidaCaballos partida = new PartidaCaballos();
+        partida.setTamañoTablero(controller.getTamaño());
         partida.setResuelto(resuelto);
-        partida.setIntentos(controller.getSolucion().size()); // Usamos el número de reinas colocadas como "intentos"
-        partidaReinasRepository.save(partida);
+        partida.setMovimientos(controller.getMovimientos().size());
+        partidaCaballosRepository.save(partida);
 
         String mensaje = resuelto
                 ? "Partida guardada como RESUELTA"
-                : "Progreso guardado (" + partida.getIntentos() + " reinas colocadas)";
+                : "Progreso guardado (" + partida.getMovimientos() + " movimientos)";
         Notification.show(mensaje, 3000, Position.MIDDLE);
     }
 
-    private void mostrarDialogoResolucion() {
+    private void resolverAutomatico() {
         if (controller == null) {
             Notification.show("Primero crea un tablero", 3000, Position.MIDDLE);
             return;
@@ -267,22 +248,24 @@ public class ProblemaReinasView extends VerticalLayout {
         columnaField.setValue(0);
 
         Button resolverBtn = new Button("Resolver", e -> {
-            boolean exito = controller.resolverDesdePosicion(filaField.getValue(), columnaField.getValue());
-            actualizarTableroVisual();
-            guardarBtn.setEnabled(true);
-            actualizarContador();
+            int fila = filaField.getValue();
+            int columna = columnaField.getValue();
 
-            Notification.show(exito ?
-                    "Solución encontrada." :
-                    "No se encontró solución con esa posición.", 3000, Position.MIDDLE);
+            if (controller.resolverAutomatico(fila, columna)) {
+                actualizarTableroVisual();
+                dialogo.close();
+                Notification.show("Solución encontrada!", 3000, Position.MIDDLE);
 
-            dialogo.close();
+                animarRecorrido();
+            } else {
+                Notification.show("No se pudo encontrar una solución completa", 3000, Position.MIDDLE);
+            }
         });
 
         Button cancelarBtn = new Button("Cancelar", e -> dialogo.close());
 
         layoutDialogo.add(
-                new H3("Resolver desde posición inicial"),
+                new H3("Selecciona la posición inicial"),
                 filaField,
                 columnaField,
                 new HorizontalLayout(resolverBtn, cancelarBtn)
@@ -292,5 +275,51 @@ public class ProblemaReinasView extends VerticalLayout {
 
         dialogo.add(layoutDialogo);
         dialogo.open();
+    }
+
+    private void animarRecorrido() {
+        List<PiezaCaballo> movimientos = controller.getMovimientos();
+        int tamaño = controller.getTamaño();
+
+        // Primero limpiar el tablero
+        for (int i = 0; i < tamaño; i++) {
+            for (int j = 0; j < tamaño; j++) {
+                int index = i * tamaño + j;
+                Div casilla = (Div) tableroContainer.getChildren().toArray()[index];
+                casilla.getStyle().set("background-color", (i + j) % 2 == 0 ? "white" : "#f0f0f0");
+            }
+        }
+
+        UI ui = UI.getCurrent();
+        new Thread(() -> {
+            for (PiezaCaballo movimiento : movimientos) {
+                int finalIndex = movimiento.getFila() * tamaño + movimiento.getColumna();
+
+                try {
+                    Thread.sleep(300); // Velocidad de la animación
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                ui.access(() -> {
+                    Div casilla = (Div) tableroContainer.getChildren().toArray()[finalIndex];
+                    casilla.removeAll();
+
+                    Div numero = new Div();
+                    numero.setText(String.valueOf(movimiento.getNumeroMovimiento() + 1));
+                    numero.getStyle()
+                            .set("font-size", "18px")
+                            .set("font-weight", "bold")
+                            .set("color", "blue");
+
+                    casilla.add(numero);
+                    casilla.getStyle().set("background-color", "#a5d6a7"); // Verde claro
+
+                    if (movimiento.getNumeroMovimiento() == movimientos.size() - 1) {
+                        Notification.show("Recorrido completado!", 2000, Position.MIDDLE);
+                    }
+                });
+            }
+        }).start();
     }
 }
